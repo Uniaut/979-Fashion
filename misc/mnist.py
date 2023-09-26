@@ -12,30 +12,50 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.conv1 = nn.Conv2d(1, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
+        self.conv2 = nn.Conv2d(6, 6, 2, 2)
+        self.conv3 = nn.Conv2d(6, 16, 5)
+        self.conv4 = nn.Conv2d(16, 16, 2, 2)
         self.fc1 = nn.Linear(16 * 4 * 4, 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 10)
 
     def forward(self, x):
-        x = self.pool(torch.relu(self.conv1(x)))
-        x = self.pool(torch.relu(self.conv2(x)))
+        x = torch.relu(self.conv1(x))
+        x = torch.relu(self.conv2(x))
+        x = torch.relu(self.conv3(x))
+        x = torch.relu(self.conv4(x))
         x = x.view(-1, 16 * 4 * 4)
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
         x = self.fc3(x)
         return x
 
+
+# Function to show some test images
+def imshow(img):
+    img = img / 2 + 0.5  # unnormalize
+    npimg = img.numpy()
+    plt.imshow(np.transpose(npimg, (1, 2, 0)))
+    plt.show()
+
+
 # Load MNIST dataset
-transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
-trainset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=4, shuffle=True)
+train_transform = transforms.Compose([
+    transforms.ToTensor(), 
+    transforms.Normalize((0.5,), (0.5,)),
+    transforms.RandomRotation(5, fill=(0,)),
+])
+trainset = torchvision.datasets.MNIST(root='./misc/', train=True, download=True, transform=train_transform)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=8, shuffle=True)
+
+dataiter = iter(trainloader)
+images, labels = next(dataiter)
+imshow(torchvision.utils.make_grid(images))
 
 # Initialize the neural network and optimizer
 net = Net()
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.AdamW(net.parameters(), lr=0.001)
+optimizer = optim.AdamW(net.parameters(), lr=1e-3)
 
 # Training the network
 for epoch in range(5):  # loop over the dataset multiple times
@@ -55,7 +75,7 @@ for epoch in range(5):  # loop over the dataset multiple times
 print("Finished Training")
 
 # Save the trained model
-PATH = "./mnist_net.pth"
+PATH = "./misc/mnist_net.pth"
 torch.save(net.state_dict(), PATH)
 print("Saved trained model")
 
@@ -64,16 +84,15 @@ net = Net()
 net.load_state_dict(torch.load(PATH))
 net.eval()
 
-# Load the test dataset£
-testset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
-testloader = torch.utils.data.DataLoader(testset, batch_size=4, shuffle=False)
+# Load the test dataset
 
-# Function to show some test images
-def imshow(img):
-    img = img / 2 + 0.5  # unnormalize
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
+test_transform = transforms.Compose([
+    transforms.ToTensor(), 
+    transforms.Normalize((0.5,), (0.5,)),
+])
+testset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=test_transform)
+testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=False)
+
 
 dataiter = iter(testloader)
 images, labels = next(dataiter)
