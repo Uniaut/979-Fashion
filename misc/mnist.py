@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
+import tqdm
+
 
 # Define a neural network
 class ResBlock(nn.Module):
@@ -90,8 +92,21 @@ def imshow(img):
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
     plt.show()
 
-# apple m2 chip
-device = torch.device("mps")
+# apple m2 chip & cuda
+use_cuda = torch.cuda.is_available()
+use_mps = torch.backends.mps.is_available()
+
+torch.manual_seed(0)
+
+if use_cuda:
+    device = torch.device("cuda")
+elif use_mps:
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
+
+print(f"Using device: {device}")
+
 NET_PATH = "./misc/mnist_net.pth"
 
 
@@ -101,6 +116,7 @@ def train():
         transforms.ToTensor(), 
         transforms.Normalize((0.5,), (0.5,)),
     ])
+    
     trainset = torchvision.datasets.MNIST(root='../data/', train=True, download=True, transform=train_transform)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True)
 
@@ -115,9 +131,9 @@ def train():
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, threshold=0.1, patience=1, mode='min')
 
     # Training the network
-    for epoch in range(5):  # loop over the dataset multiple times
+    for epoch in range(10):  # loop over the dataset multiple times
         running_loss = 0.0
-        for i, data in enumerate(trainloader, 0):
+        for i, data in tqdm.tqdm(enumerate(trainloader)):
             inputs, labels = data[0].to(device), data[1].to(device)
             optimizer.zero_grad()
             outputs = net(inputs)
@@ -125,9 +141,10 @@ def train():
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
-            if i % 100 == 99:  # print every 2000 mini-batches
-                print(f"[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 100:.5f}")
-                running_loss = 0.0
+        else:
+            print(f"epoch-{epoch} loss: {running_loss / i:.5f}")
+        
+        scheduler.step(loss)
 
     print("Finished Training")
 
@@ -146,10 +163,10 @@ def test():
 
     test_transform = transforms.Compose([
         transforms.ToTensor(), 
-        transforms.Normalize((0.5,), (0.5,)),
+        transforms.Normalize((0.5,), (0.5,))
     ])
     testset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=test_transform)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=64, shuffle=False)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=8, shuffle=False)
 
 
     dataiter = iter(testloader)
@@ -168,9 +185,9 @@ def test():
     correct = 0
     total = 0
     with torch.no_grad():
-        for data in testloader:
-            images, labels = data
-            outputs = net(images)
+        for data in tqdm.tqdm(testloader):
+            inputs, labels = data[0], data[1]
+            outputs = net(inputs)
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
