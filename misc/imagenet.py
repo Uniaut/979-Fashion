@@ -102,22 +102,16 @@ def main_worker(args):
     
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
     scheduler = StepLR(optimizer, step_size=30, gamma=0.1)
+    
+    best_acc1 = 0
 
-        # optionally resume from a checkpoint
+    # optionally resume from a checkpoint
     if args.resume:
         if os.path.isfile(args.resume):
             print("=> loading checkpoint '{}'".format(args.resume))
-            if args.gpu is None:
-                checkpoint = torch.load(args.resume)
-            elif torch.cuda.is_available():
-                # Map model to be loaded to specified single gpu.
-                loc = 'cuda:{}'.format(args.gpu)
-                checkpoint = torch.load(args.resume, map_location=loc)
+            checkpoint = torch.load(args.resume)
             args.start_epoch = checkpoint['epoch']
             best_acc1 = checkpoint['best_acc1']
-            if args.gpu is not None:
-                # best_acc1 may be from a checkpoint from a different GPU
-                best_acc1 = best_acc1.to(args.gpu)
             model.load_state_dict(checkpoint['state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer'])
             scheduler.load_state_dict(checkpoint['scheduler'])
@@ -168,7 +162,6 @@ def main_worker(args):
         validate(val_loader, model, criterion, device, args)
         return
     
-    best_acc1 = 0
     for epoch in range(args.start_epoch, args.epochs):
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch, device, args)
@@ -236,6 +229,8 @@ def train(train_loader, model, criterion, optimizer, epoch, device, args):
         
         if i % args.print_freq == 0:
             progress.display(i)
+    
+    progress.display_summary()
 
 def validate(val_loader, model, criterion, device, args):
     def run_validate(loader, base_progress=0):
@@ -323,6 +318,7 @@ class ProgressMeter(object):
         print('\t'.join(entries))
 
     def display_summary(self):
+        entries = [self.prefix + 'Summary:']
         entries = [str(meter.summary()) for meter in self.meters]
         print('\t'.join(entries))
 
