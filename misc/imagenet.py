@@ -6,6 +6,10 @@ import time
 import warnings
 from enum import Enum
 
+import ssl
+
+ssl._create_default_https_context = ssl._create_unverified_context
+
 import torch
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
@@ -34,7 +38,7 @@ parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet18',
                         ' | '.join(model_names) +
                         ' (default: resnet18)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
-                    help='number of data loading workers (default: 4)')
+                    help='number of data loading workers (defdault: 4)')
 parser.add_argument('--epochs', default=90, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
